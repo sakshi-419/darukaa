@@ -1,0 +1,11 @@
+Title: Agroecological Perimeter Buffer Strips for Pollinator Conservation
+Authors: IPBES Pollination Working Group
+Organization: IPBES
+Year: 2021
+Topic: biodiversity
+URL: https://www.ipbes.net/pollinators
+Region: Temperate and Subtropical Agricultural Zones
+Metrics: pollinator_abundance, habitat_diversity, pesticide_pressure
+
+Content:
+Intensive agricultural monocultures deplete floral diversity, exposing insect pollinators to chronic nutritional stress and insecticide toxicity. Establishing native flowering vegetative buffers (5 to 10 meters wide) on field boundaries creates crucial ecological refuges. Diverse native flora flowering asynchronously ensures season-long nectar and pollen availability. This simple intervention raises wild solitary bee species richness by 45-65% and reduces pesticide drift into surrounding native ecosystems by 60%.

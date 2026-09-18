@@ -1,0 +1,6 @@
+metric,threshold_critical,threshold_optimal,unit,ecological_implication,source
+soil_organic_carbon,0.5,1.5,percent,Below 0.5% causes microbial starvation and loss of aggregate stability,FAO 2020
+soil_ph,5.5 - 8.5,6.5 - 7.5,pH scale,Extreme pH induces nutrient lockup and depresses bacterial diversity,IPBES 2018
+annual_rainfall,400,800,mm,Under 400mm without soil cover causes rapid moisture deficit and desertification,IPCC 2019
+soil_moisture,12,25,percent,Under 15% induces plant stomatal closure and subterranean microfauna dormancy,FAO 2021
+pesticide_pressure,High,Low,categorical,High pesticide pressure eliminates non-target beneficial arthropods and mycorrhizae,IPBES 2016
