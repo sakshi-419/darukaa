@@ -41,8 +41,14 @@ app.add_api_route("/sources", knowledge.list_sources, methods=["GET"], tags=["Kn
 @app.on_event("startup")
 def on_startup():
     print("Starting Darukaa.Earth Backend...")
-    init_db()
-    seed_data()
+    try:
+        init_db()
+    except Exception as e:
+        print(f"init_db notice on startup: {e}")
+    try:
+        seed_data()
+    except Exception as e:
+        print(f"seed_data notice on startup: {e}")
     # Ingest documents if vector store empty
     try:
         ingest_all()

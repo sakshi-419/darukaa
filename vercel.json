@@ -3,13 +3,25 @@
   "builds": [
     {
       "src": "api/index.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "includeFiles": [
+          "backend/**",
+          "knowledge_base/**",
+          "scripts/**"
+        ]
+      }
     },
     {
       "src": "frontend/package.json",
       "use": "@vercel/next"
     }
   ],
+  "functions": {
+    "api/**/*.py": {
+      "includeFiles": "{backend/**,knowledge_base/**,scripts/**}"
+    }
+  },
   "routes": [
     {
       "src": "/api/(.*)",
