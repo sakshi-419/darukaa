@@ -67,7 +67,7 @@ const PRESETS = {
 
 export const JsonInputModal: React.FC<JsonInputModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const [activeMode, setActiveMode] = useState<'visual' | 'json'>('visual');
-  const [formData, setFormData] = useState(PRESETS.semi_arid_wheat.data);
+  const [formData, setFormData] = useState<Record<string, any>>(PRESETS.semi_arid_wheat.data);
   const [jsonText, setJsonText] = useState(JSON.stringify(PRESETS.semi_arid_wheat.data, null, 2));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
