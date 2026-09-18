@@ -17,7 +17,8 @@ export async function sendChatMessage(
     }),
   });
   if (!res.ok) {
-    throw new Error(`Chat API error: ${res.statusText}`);
+    const errText = await res.text().catch(() => '');
+    throw new Error(`HTTP ${res.status}: ${errText || res.statusText || 'Request failed'}`);
   }
   return res.json();
 }
@@ -29,7 +30,8 @@ export async function analyzeEnvironmentJson(jsonData: Record<string, any>): Pro
     body: JSON.stringify(jsonData),
   });
   if (!res.ok) {
-    throw new Error(`Analyze API error: ${res.statusText}`);
+    const errText = await res.text().catch(() => '');
+    throw new Error(`HTTP ${res.status}: ${errText || res.statusText || 'Request failed'}`);
   }
   return res.json();
 }
@@ -37,7 +39,8 @@ export async function analyzeEnvironmentJson(jsonData: Record<string, any>): Pro
 export async function getSources(): Promise<{ sources: SourceItem[]; total: number }> {
   const res = await fetch(`${API_BASE}/sources`);
   if (!res.ok) {
-    throw new Error(`Failed to load sources: ${res.statusText}`);
+    const errText = await res.text().catch(() => '');
+    throw new Error(`HTTP ${res.status}: ${errText || res.statusText || 'Failed to load sources'}`);
   }
   return res.json();
 }
@@ -45,7 +48,8 @@ export async function getSources(): Promise<{ sources: SourceItem[]; total: numb
 export async function getEvaluationTelemetry(): Promise<Record<string, any>> {
   const res = await fetch(`${API_BASE}/evaluation`);
   if (!res.ok) {
-    throw new Error(`Failed to load evaluation metrics: ${res.statusText}`);
+    const errText = await res.text().catch(() => '');
+    throw new Error(`HTTP ${res.status}: ${errText || res.statusText || 'Failed to load telemetry'}`);
   }
   return res.json();
 }

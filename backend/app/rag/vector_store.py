@@ -47,13 +47,17 @@ class VectorStore:
                 print(f"Qdrant connection failed ({e}). Falling back to ChromaDB/in-memory.")
                 self.db_type = "chroma"
 
+        # On Vercel serverless environment, use instant in-memory cosine store
+        if os.getenv("VERCEL"):
+            print("Vercel environment detected: using instant in-memory vector store.")
+            self.db_type = "memory"
+            self.chroma_collection = None
+            return
+
         # Attempt ChromaDB
         try:
             import chromadb
-            if os.getenv("VERCEL"):
-                persist_dir = "/tmp/chroma_data"
-            else:
-                persist_dir = os.path.join(os.getcwd(), "chroma_data")
+            persist_dir = os.path.join(os.getcwd(), "chroma_data")
             client = chromadb.PersistentClient(path=persist_dir)
             self.chroma_collection = client.get_or_create_collection(
                 name="darukaa_knowledge",
