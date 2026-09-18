@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     QDRANT_API_KEY: Optional[str] = None
     
     # Database
-    DATABASE_URL: str = "sqlite:///./darukaa.db"
+    DATABASE_URL: str = "sqlite:////tmp/darukaa.db" if os.getenv("VERCEL") else "sqlite:///./darukaa.db"
     
     # Optional Weather API
     OPTIONAL_WEATHER_API_KEY: Optional[str] = None

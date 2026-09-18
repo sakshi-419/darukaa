@@ -21,14 +21,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include API Routers
+# Include API Routers (mounted with and without /api prefix for bulletproof Vercel serverless routing)
 app.include_router(chat.router, prefix=settings.API_V1_STR, tags=["Chat"])
-app.include_router(environment.router, prefix=f"{settings.API_V1_STR}/environment", tags=["Environment"])
-app.include_router(knowledge.router, prefix=f"{settings.API_V1_STR}/knowledge", tags=["Knowledge"])
-app.include_router(health.router, prefix=settings.API_V1_STR, tags=["Health & Telemetry"])
+app.include_router(chat.router, prefix="", tags=["Chat"])
 
-# Also mount sources directly under /api/sources as requested in section 19
+app.include_router(environment.router, prefix=f"{settings.API_V1_STR}/environment", tags=["Environment"])
+app.include_router(environment.router, prefix="/environment", tags=["Environment"])
+
+app.include_router(knowledge.router, prefix=f"{settings.API_V1_STR}/knowledge", tags=["Knowledge"])
+app.include_router(knowledge.router, prefix="/knowledge", tags=["Knowledge"])
+
+app.include_router(health.router, prefix=settings.API_V1_STR, tags=["Health & Telemetry"])
+app.include_router(health.router, prefix="", tags=["Health & Telemetry"])
+
+# Also mount sources directly under /api/sources and /sources
 app.add_api_route("/api/sources", knowledge.list_sources, methods=["GET"], tags=["Knowledge"])
+app.add_api_route("/sources", knowledge.list_sources, methods=["GET"], tags=["Knowledge"])
 
 @app.on_event("startup")
 def on_startup():

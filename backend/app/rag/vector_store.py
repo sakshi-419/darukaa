@@ -50,7 +50,10 @@ class VectorStore:
         # Attempt ChromaDB
         try:
             import chromadb
-            persist_dir = os.path.join(os.getcwd(), "chroma_data")
+            if os.getenv("VERCEL"):
+                persist_dir = "/tmp/chroma_data"
+            else:
+                persist_dir = os.path.join(os.getcwd(), "chroma_data")
             client = chromadb.PersistentClient(path=persist_dir)
             self.chroma_collection = client.get_or_create_collection(
                 name="darukaa_knowledge",
