@@ -114,8 +114,10 @@ export default function Home() {
 
     try {
       // Turn 1
-      const res1 = await sendChatMessage('Biodiversity is declining on my farm.', convId);
       const msg1User: ChatMessage = { id: `s2_u1_${Date.now()}`, role: 'user', content: 'Biodiversity is declining on my farm.' };
+      setMessages([INITIAL_MESSAGE, msg1User]);
+      const res1 = await sendChatMessage('Biodiversity is declining on my farm.', convId);
+      setEnvironmentalState(res1.environmental_state);
       const msg1Bot: ChatMessage = {
         id: `s2_b1_${Date.now()}`,
         role: 'assistant',
@@ -123,10 +125,13 @@ export default function Home() {
         status: res1.status,
         clarification_questions: res1.clarification_questions,
       };
+      setMessages([INITIAL_MESSAGE, msg1User, msg1Bot]);
 
       // Turn 2
-      const res2 = await sendChatMessage('Carbon is 0.3%, rainfall is low and I grow wheat.', convId);
       const msg2User: ChatMessage = { id: `s2_u2_${Date.now()}`, role: 'user', content: 'Carbon is 0.3%, rainfall is low and I grow wheat.' };
+      setMessages([INITIAL_MESSAGE, msg1User, msg1Bot, msg2User]);
+      const res2 = await sendChatMessage('Carbon is 0.3%, rainfall is low and I grow wheat.', convId);
+      setEnvironmentalState(res2.environmental_state);
       const msg2Bot: ChatMessage = {
         id: `s2_b2_${Date.now()}`,
         role: 'assistant',
@@ -134,10 +139,12 @@ export default function Home() {
         status: res2.status,
         clarification_questions: res2.clarification_questions,
       };
+      setMessages([INITIAL_MESSAGE, msg1User, msg1Bot, msg2User, msg2Bot]);
 
       // Turn 3
-      const res3 = await sendChatMessage('Around 450 mm.', convId);
       const msg3User: ChatMessage = { id: `s2_u3_${Date.now()}`, role: 'user', content: 'Around 450 mm.' };
+      setMessages([INITIAL_MESSAGE, msg1User, msg1Bot, msg2User, msg2Bot, msg3User]);
+      const res3 = await sendChatMessage('Around 450 mm.', convId);
       const msg3Bot: ChatMessage = {
         id: `s2_b3_${Date.now()}`,
         role: 'assistant',

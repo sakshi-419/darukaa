@@ -41,26 +41,31 @@ class LLMProvider:
                     "messages": messages,
                     "temperature": temperature
                 }
-                res = httpx.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload, timeout=30.0)
+                res = httpx.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload, timeout=5.0)
                 if res.status_code == 200:
                     data = res.json()
                     return data["choices"][0]["message"]["content"]
+                else:
+                    print(f"OpenAI API status {res.status_code}. Falling back to scientific engine.")
             except Exception as e:
                 print(f"OpenAI API call failed: {e}. Falling back to scientific engine synthesis.")
 
         # 2. Google Gemini Integration
-        if provider == "gemini" and api_key:
+        if provider == "gemini" and api_key and not api_key.startswith("AQ."):
             try:
                 import httpx
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+                gemini_model = "gemini-1.5-flash" if "gemini" in model.lower() else model
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent?key={api_key}"
                 payload = {
                     "contents": [{"parts": [{"text": f"{system_instruction or ''}\n\n{prompt}"}]}],
                     "generationConfig": {"temperature": temperature}
                 }
-                res = httpx.post(url, json=payload, timeout=30.0)
+                res = httpx.post(url, json=payload, timeout=5.0)
                 if res.status_code == 200:
                     data = res.json()
                     return data["candidates"][0]["content"]["parts"][0]["text"]
+                else:
+                    print(f"Gemini API status {res.status_code}. Falling back to scientific engine.")
             except Exception as e:
                 print(f"Gemini API call failed: {e}. Falling back to scientific engine synthesis.")
 
