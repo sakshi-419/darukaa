@@ -100,6 +100,14 @@ export default function Home() {
       handleJsonSuccess(res);
     } catch (e: any) {
       console.error(e);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `err_s1_${Date.now()}`,
+          role: 'assistant',
+          content: `Connection Notice: ${e.message || 'Unable to complete structured telemetry analysis.'}.`,
+        },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -160,6 +168,14 @@ export default function Home() {
       if (res3.transparency) setTransparencyTrace(res3.transparency);
     } catch (e: any) {
       console.error(e);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `err_s2_${Date.now()}`,
+          role: 'assistant',
+          content: `Connection Notice: ${e.message || 'Unable to complete multi-turn scenario analysis.'}.`,
+        },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -190,6 +206,14 @@ export default function Home() {
       if (res.transparency) setTransparencyTrace(res.transparency);
     } catch (e: any) {
       console.error(e);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `err_s3_${Date.now()}`,
+          role: 'assistant',
+          content: `Connection Notice: ${e.message || 'Unable to complete guardrail analysis.'}.`,
+        },
+      ]);
     } finally {
       setLoading(false);
     }
