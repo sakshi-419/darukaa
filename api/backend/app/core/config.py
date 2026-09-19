@@ -19,7 +19,17 @@ class Settings(BaseSettings):
     QDRANT_API_KEY: Optional[str] = None
     
     # Database
-    DATABASE_URL: str = "sqlite:////tmp/darukaa.db" if os.getenv("VERCEL") else "sqlite:///./darukaa.db"
+    DATABASE_URL: str = (
+        os.getenv("DATABASE_URL") or
+        ("sqlite:////tmp/darukaa.db" if (
+            os.getenv("VERCEL") or
+            os.getenv("VERCEL_ENV") or
+            os.getenv("AWS_LAMBDA_FUNCTION_NAME") or
+            os.getenv("LAMBDA_TASK_ROOT") or
+            os.path.exists("/var/task") or
+            (os.name != "nt" and not os.access(".", os.W_OK))
+        ) else "sqlite:///./darukaa.db")
+    )
     
     # Optional Weather API
     OPTIONAL_WEATHER_API_KEY: Optional[str] = None
