@@ -13,7 +13,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Global Exception Boundary to prevent serverless container crashes (FUNCTION_INVOCATION_FAILED)
+# Global Exception Boundary to prevent unhandled crashes
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     import traceback

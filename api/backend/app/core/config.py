@@ -2,6 +2,23 @@ import os
 from pydantic_settings import BaseSettings
 from typing import Optional
 
+def is_serverless() -> bool:
+    if os.getenv("VERCEL") or os.getenv("VERCEL_ENV"):
+        return True
+    if os.getenv("AWS_LAMBDA_FUNCTION_NAME") or os.getenv("LAMBDA_TASK_ROOT"):
+        return True
+    if os.path.exists("/var/task"):
+        return True
+    if os.name != "nt":
+        try:
+            test_file = f".write_test_{os.getpid()}"
+            with open(test_file, "w") as f:
+                f.write("1")
+            os.remove(test_file)
+        except Exception:
+            return True
+    return False
+
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Darukaa.Earth — Biodiversity Intelligence"
     TAGLINE: str = "From environmental data to evidence-backed biodiversity action."
@@ -19,22 +36,20 @@ class Settings(BaseSettings):
     QDRANT_API_KEY: Optional[str] = None
     
     # Database
-    DATABASE_URL: str = (
-        os.getenv("DATABASE_URL") or
-        ("sqlite:////tmp/darukaa.db" if (
-            os.getenv("VERCEL") or
-            os.getenv("VERCEL_ENV") or
-            os.getenv("AWS_LAMBDA_FUNCTION_NAME") or
-            os.getenv("LAMBDA_TASK_ROOT") or
-            os.path.exists("/var/task") or
-            (os.name != "nt" and not os.access(".", os.W_OK))
-        ) else "sqlite:///./darukaa.db")
-    )
+    DATABASE_URL: str = "sqlite:///./darukaa.db"
     
     # Optional Weather API
     OPTIONAL_WEATHER_API_KEY: Optional[str] = None
     DEBUG: bool = True
 
     model_config = {"env_file": ".env", "extra": "ignore"}
+
+    @property
+    def effective_database_url(self) -> str:
+        if is_serverless():
+            if self.DATABASE_URL and not self.DATABASE_URL.startswith("sqlite"):
+                return self.DATABASE_URL
+            return "sqlite:////tmp/darukaa.db"
+        return self.DATABASE_URL
 
 settings = Settings()
