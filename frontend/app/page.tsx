@@ -77,7 +77,7 @@ export default function Home() {
       causal_pathways: data.causal_pathways,
       transparency: data.transparency,
     };
-    setMessages((prev) => [...prev, userMsg, botMsg]);
+    setMessages([INITIAL_MESSAGE, userMsg, botMsg]);
     setActiveTab('chat');
   };
 
@@ -85,6 +85,17 @@ export default function Home() {
   const runScenario1 = async () => {
     setActiveTab('chat');
     setLoading(true);
+    const newConvId = `scenario1_${Date.now()}`;
+    setConversationId(newConvId);
+    setEnvironmentalState({
+      location: {},
+      soil: {},
+      climate: {},
+      land: {},
+      biodiversity: {},
+      human_impact: {},
+    });
+    setTransparencyTrace(undefined);
     const scenarioPayload = {
       soil_ph: 7.8,
       organic_carbon: 0.3,
@@ -92,6 +103,7 @@ export default function Home() {
       rainfall: 450.0,
       crop: 'wheat',
       land_use: 'monoculture',
+      cropping_system: 'monoculture',
       region: 'semi-arid',
       country: 'India',
     };
@@ -187,10 +199,19 @@ export default function Home() {
     setLoading(true);
     const convId = `scenario3_${Date.now()}`;
     setConversationId(convId);
+    setEnvironmentalState({
+      location: {},
+      soil: {},
+      climate: {},
+      land: {},
+      biodiversity: {},
+      human_impact: {},
+    });
+    setTransparencyTrace(undefined);
     const query = 'How much will biodiversity increase if I plant 100 trees?';
 
     try {
-      const res = await sendChatMessage(query, convId);
+      const res = await sendChatMessage(query, convId, undefined, true);
       const userMsg: ChatMessage = { id: `s3_u_${Date.now()}`, role: 'user', content: query };
       const botMsg: ChatMessage = {
         id: `s3_b_${Date.now()}`,
@@ -201,7 +222,7 @@ export default function Home() {
         causal_pathways: res.causal_pathways,
         transparency: res.transparency,
       };
-      setMessages((prev) => [...prev, userMsg, botMsg]);
+      setMessages([INITIAL_MESSAGE, userMsg, botMsg]);
       setEnvironmentalState(res.environmental_state);
       if (res.transparency) setTransparencyTrace(res.transparency);
     } catch (e: any) {

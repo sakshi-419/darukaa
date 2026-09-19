@@ -5,7 +5,8 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
 export async function sendChatMessage(
   message: string,
   conversationId?: string,
-  geoCoords?: { latitude: number; longitude: number }
+  geoCoords?: { latitude: number; longitude: number },
+  resetState?: boolean
 ): Promise<ChatResponse> {
   const res = await fetch(`${API_BASE}/chat`, {
     method: 'POST',
@@ -14,6 +15,7 @@ export async function sendChatMessage(
       conversation_id: conversationId,
       message,
       geo_coords: geoCoords,
+      reset_state: resetState,
     }),
   });
   if (!res.ok) {

@@ -114,6 +114,7 @@ class ChatRequest(BaseModel):
     conversation_id: Optional[str] = None
     message: str
     geo_coords: Optional[Dict[str, float]] = None
+    reset_state: Optional[bool] = False
 
 class ClarificationQuestion(BaseModel):
     field: str

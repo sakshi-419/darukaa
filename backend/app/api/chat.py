@@ -24,8 +24,19 @@ def handle_chat(request: ChatRequest, db: Session = Depends(get_db)):
     # Record user message in DB
     state_manager.append_message(db, conversation_id, "user", request.message)
 
-    # 2. Load current persistent state
-    current_state = state_manager.load_state(db, conversation_id)
+    # 2. Check if this is a substantive or new independent assessment
+    is_substantive = extractor.is_substantive_assessment(request.message)
+    reset_requested = getattr(request, "reset_state", False)
+
+    if reset_requested or is_substantive:
+        # Treat every submitted assessment as completely independent:
+        # Construct structured object from ONLY the current inputs, zero carry-over from prior assessments
+        current_state = EnvironmentalState()
+        force_fresh = True
+    else:
+        # Incremental turn in ongoing multi-turn diagnostic (e.g., answering 'Around 450 mm')
+        current_state = state_manager.load_state(db, conversation_id)
+        force_fresh = False
 
     # 3. Geo-coordinates bonus enrichment if provided
     if request.geo_coords and "latitude" in request.geo_coords and "longitude" in request.geo_coords:
@@ -33,8 +44,8 @@ def handle_chat(request: ChatRequest, db: Session = Depends(get_db)):
             request.geo_coords["latitude"], request.geo_coords["longitude"], current_state
         )
 
-    # 4. Extract newly provided environmental variables from user message
-    extracted_state = extractor.extract_from_text(request.message, current_state)
+    # 4. Extract environmental variables strictly from text
+    extracted_state = extractor.extract_from_text(request.message, current_state, force_fresh=force_fresh)
     active_state = state_manager.merge_and_save_state(db, conversation_id, extracted_state)
 
     # 5. Check for unsupported quantitative claim requests (Scenario 3: "100 trees percentage")
@@ -90,10 +101,13 @@ def handle_chat(request: ChatRequest, db: Session = Depends(get_db)):
     # 8. Multi-Aspect RAG Retrieval: Retrieve scientific evidence
     retrieved_docs = rag_retriever.retrieve_evidence(request.message, active_state, top_k=4)
 
-    # 9. Recommendation Generation: Specific, actionable, non-obvious
-    recommendations = recommendation_engine.generate_recommendations(active_state, reasoning_out, retrieved_docs)
+    # 9. Recommendation Generation: Grounded strictly in CURRENT diagnosis
+    raw_recommendations = recommendation_engine.generate_recommendations(active_state, reasoning_out, retrieved_docs)
 
-    # 10. Construct RAG Transparency Trace
+    # 10. 5-Stage Validation Layer: Contradiction check, relevance check, numerical sanitization, confidence scoring
+    recommendations = evidence_validator.validate_and_filter_recommendations(raw_recommendations, active_state, retrieved_docs)
+
+    # 11. Construct RAG Transparency Trace
     transparency = TransparencyTrace(
         user_inputs={
             "query": request.message,
@@ -109,7 +123,7 @@ def handle_chat(request: ChatRequest, db: Session = Depends(get_db)):
         causal_chains=[ch.steps for ch in reasoning_out["identified_chains"]],
         retrieved_sources_count=len(retrieved_docs),
         relevant_sources_used=sum(len(r.evidence) for r in recommendations),
-        evidence_validation_summary="All recommendations cross-referenced against authoritative scientific publications (FAO, IPBES, IPCC, UNEP).",
+        evidence_validation_summary="All recommendations validated against current site inputs and cross-referenced with peer-reviewed agroecological literature.",
         confidence_breakdown={
             "variables_linked_count": reasoning_out["connected_variable_count"],
             "sources_count": len(retrieved_docs),

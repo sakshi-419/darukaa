@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any
 from backend.app.schemas.environmental import EnvironmentalState
 
 class EcologicalCausalChain:
@@ -12,7 +12,7 @@ class MultiMetricReasoningEngine:
     """
     Core reasoning layer: models multi-variable interactions across
     Soil Health, Climate Stress, Land Cover, and Human Pressure.
-    Strictly mandates connecting >= 3 variables for high-confidence diagnostics.
+    Strictly uses current inputs and avoids unsupported quantitative claims.
     """
     def reason(self, state: EnvironmentalState) -> Dict[str, Any]:
         s = state.soil
@@ -25,7 +25,7 @@ class MultiMetricReasoningEngine:
         identified_chains: List[EcologicalCausalChain] = []
         diagnostic_insights: List[str] = []
 
-        # Track active variables
+        # Track verified active variables strictly from current state
         if s.organic_carbon_percent is not None:
             variables_considered.append(f"Soil Organic Carbon ({s.organic_carbon_percent}%)")
         if s.ph is not None:
@@ -45,97 +45,150 @@ class MultiMetricReasoningEngine:
         if h.pesticide_pressure:
             variables_considered.append(f"Pesticide Pressure ({h.pesticide_pressure})")
 
-        # Causal Chain 1: Dryland Monoculture Carbon-Moisture Deficit (>= 3 variables)
-        is_low_soc = s.organic_carbon_percent is not None and s.organic_carbon_percent < 0.6
-        is_low_rain = (c.annual_rainfall_mm is not None and c.annual_rainfall_mm < 500) or c.drought_risk == "high"
-        is_monoculture = l.cropping_system == "monoculture" or (l.crop is not None and l.cropping_system is None)
-        
-        if is_low_soc and is_low_rain and is_monoculture:
-            chain = EcologicalCausalChain(
-                name="Dryland Monoculture Carbon-Moisture Deficit",
-                variables=["Annual Rainfall (<500 mm)", "Soil Organic Carbon (<0.6%)", "Monoculture Cropping"],
-                description="Compound feedback: Low rainfall limits biomass generation, continuous monoculture prevents organic replenishment, and depleted SOC degrades soil aggregate structure, further diminishing soil moisture retention.",
-                steps=[
-                    "Low annual rainfall (<500 mm) / Semi-arid climate",
-                    "Continuous monoculture (wheat/cereal) without rotation",
-                    "Severe depletion of Soil Organic Carbon (<0.5%)",
-                    "Collapse of soil aggregate stability and porosity",
-                    "Loss of volumetric soil moisture retention (≤15%)",
-                    "Depression of mycorrhizal fungi and bacterial biomass (>60% decline)",
-                    "Diminished ecosystem resilience and biodiversity loss"
-                ]
-            )
-            identified_chains.append(chain)
-            diagnostic_insights.append(
-                f"Your conditions reveal a compounding bottleneck: low annual rainfall ({c.annual_rainfall_mm or 'low'} mm) "
-                f"and depleted soil organic carbon ({s.organic_carbon_percent or '0.3'}%) interact under continuous "
-                f"{l.crop or 'cereal'} monoculture to suppress microbial diversity and soil moisture holding capacity."
-            )
-
-        # Causal Chain 2: Alkaline Soil + Heat Stress + Carbon Starvation (>= 3 variables)
+        # Current crop and management descriptors
+        crop_display = l.crop if l.crop else "cultivated crop"
+        is_monoculture = (l.cropping_system == "monoculture")
+        is_rotation = (l.cropping_system in ["crop rotation", "rotation", "rotational"])
+        is_low_soc = s.organic_carbon_percent is not None and s.organic_carbon_percent < 0.75
+        is_low_rain = (c.annual_rainfall_mm is not None and c.annual_rainfall_mm < 600) or c.drought_risk == "high"
         is_alkaline = s.ph is not None and s.ph >= 7.5
-        is_hot = c.temperature_c is not None and c.temperature_c >= 30
-        if is_alkaline and is_low_soc and (is_hot or is_low_rain):
-            chain = EcologicalCausalChain(
-                name="Alkaline-Thermal Carbon Mineralization Dynamic",
-                variables=["Soil pH (Alkaline)", "Soil Organic Carbon", "Thermal / Moisture Stress"],
-                description="High soil pH induces chemical phosphorus fixation, while high temperatures accelerate microbial carbon oxidation on bare soil surfaces, compounding biological drought.",
-                steps=[
-                    "Alkaline soil pH (>7.5) chemically complexes phosphorus with calcium",
-                    "Surface thermal stress (>30°C) accelerates carbon oxidation",
-                    "Depleted organic carbon starves heterotrophic decomposers",
-                    "Suppression of root exudate microbial mutualisms"
-                ]
-            )
-            identified_chains.append(chain)
 
-        # Causal Chain 3: Agricultural Intensification & Pollinator Starvation
-        is_high_pesticide = h.pesticide_pressure in ["high", "intensive"]
-        if is_monoculture and (is_high_pesticide or is_low_soc):
-            chain = EcologicalCausalChain(
-                name="Trophic Pollinator and Soil Macrofauna Depletion",
-                variables=["Monoculture Landscape", "Pesticide / Chemical Pressure", "Habitat Simplification"],
-                description="Lack of non-crop floral corridors coupled with continuous monoculture deprives beneficial pollinators and detritivores of seasonal forage and nesting refugia.",
-                steps=[
-                    "Field boundary simplification and removal of non-crop flora",
-                    "Nutritional dearth for native solitary bees and hoverflies during non-crop seasons",
-                    "Pesticide drift and chemical exposure",
-                    "Collapse of native pollinator abundance (40-70% decline)",
-                    "Breakdown of natural pest predation food webs"
-                ]
-            )
-            identified_chains.append(chain)
+        # Causal Chain 1: Soil Carbon & Moisture Constraints
+        if is_low_soc and is_low_rain:
+            if is_rotation:
+                chain = EcologicalCausalChain(
+                    name="Rotational Cropping Carbon-Moisture Equilibrium",
+                    variables=["Rainfall Dynamics", "Soil Organic Carbon", "Rotational Management"],
+                    description=(
+                        f"In semi-arid conditions ({c.annual_rainfall_mm or 'unrecorded'} mm rainfall), practicing crop rotation with {crop_display} "
+                        f"helps moderate disease and nutrient depletion. However, soil organic carbon ({s.organic_carbon_percent or 'unrecorded'}%) "
+                        f"remains a primary constraint for optimizing water-use efficiency."
+                    ),
+                    steps=[
+                        f"Semi-arid moisture regime ({c.annual_rainfall_mm or 'moderate'} mm rainfall) constrains seasonal biomass production",
+                        f"Established crop rotation sequence with {crop_display}",
+                        f"Soil organic carbon level ({s.organic_carbon_percent or 'unrecorded'}%) governs soil aggregate stability and biological energy",
+                        "Maintaining surface residue and diverse root exudates can support soil biological activity and moisture retention"
+                    ]
+                )
+                identified_chains.append(chain)
+                diagnostic_insights.append(
+                    f"Current management establishes {crop_display} within a crop rotation system. "
+                    f"In this moisture regime ({c.annual_rainfall_mm or 'unrecorded'} mm), soil organic carbon ({s.organic_carbon_percent or 'unrecorded'}%) "
+                    f"is the key leverage point to improve rainfall-use efficiency and support soil biological resilience."
+                )
+            elif is_monoculture:
+                chain = EcologicalCausalChain(
+                    name="Dryland Monoculture Carbon-Moisture Deficit",
+                    variables=["Annual Rainfall (<600 mm)", "Soil Organic Carbon", "Continuous Monoculture"],
+                    description=(
+                        f"Continuous single-crop cultivation of {crop_display} under limited rainfall ({c.annual_rainfall_mm or 'unrecorded'} mm) "
+                        f"interacts with low soil organic carbon ({s.organic_carbon_percent or 'unrecorded'}%) to restrict biological activity and moisture retention."
+                    ),
+                    steps=[
+                        f"Limited precipitation ({c.annual_rainfall_mm or 'low'} mm) restricts vegetative biomass generation",
+                        f"Continuous {crop_display} monoculture without rotational diversity",
+                        f"Depleted soil organic carbon ({s.organic_carbon_percent or 'unrecorded'}%)",
+                        "May diminish soil aggregate stability and moisture retention capacity",
+                        "Can reduce microbial habitat diversity and overall agroecosystem buffering capacity"
+                    ]
+                )
+                identified_chains.append(chain)
+                diagnostic_insights.append(
+                    f"Your assessment indicates continuous {crop_display} monoculture under constrained precipitation "
+                    f"({c.annual_rainfall_mm or 'unrecorded'} mm) and low organic carbon ({s.organic_carbon_percent or 'unrecorded'}%), "
+                    f"which can restrict soil microbial resilience and moisture buffering."
+                )
+            else:
+                # Cropping system not specified as monoculture or rotation
+                chain = EcologicalCausalChain(
+                    name="Dryland Soil Organic Carbon and Hydrological Dynamics",
+                    variables=["Rainfall Availability", "Soil Organic Carbon", "Cultivated Field Management"],
+                    description=(
+                        f"The interaction between precipitation ({c.annual_rainfall_mm or 'unrecorded'} mm) and organic carbon ({s.organic_carbon_percent or 'unrecorded'}%) "
+                        f"governs soil structure and moisture availability for {crop_display}."
+                    ),
+                    steps=[
+                        f"Seasonal precipitation availability ({c.annual_rainfall_mm or 'unrecorded'} mm)",
+                        f"Soil organic carbon reserves ({s.organic_carbon_percent or 'unrecorded'}%)",
+                        "Regulates biological energy flux and moisture infiltration in the root zone",
+                        "Organic matter management can contribute to sustained crop and biological productivity"
+                    ]
+                )
+                identified_chains.append(chain)
+                diagnostic_insights.append(
+                    f"Diagnostic modeling shows that for {crop_display}, available precipitation ({c.annual_rainfall_mm or 'unrecorded'} mm) "
+                    f"and soil organic carbon ({s.organic_carbon_percent or 'unrecorded'}%) interact to define the soil moisture buffering capacity."
+                )
 
-        # Default fallback chain if fewer variables, ensuring at least 3 connected dimensions are highlighted
-        if not identified_chains:
-            soc_val = s.organic_carbon_percent if s.organic_carbon_percent is not None else 0.4
-            rain_val = c.annual_rainfall_mm if c.annual_rainfall_mm is not None else 450
+        # Causal Chain 2: Alkaline Soil Dynamic
+        if is_alkaline:
             chain = EcologicalCausalChain(
-                name="Agroecosystem Hydrological and Biological Equilibrium",
-                variables=["Soil Organic Carbon", "Precipitation / Soil Moisture", "Cropping Structure"],
-                description="Interaction between soil organic carbon reserves, soil moisture dynamics, and floral diversification governs biological carrying capacity.",
+                name="Alkaline Soil Nutrient and Microbial Dynamic",
+                variables=["Soil pH (Alkaline)", "Bioavailability", "Root Exudates"],
+                description=(
+                    f"Soil pH of {s.ph} creates alkaline conditions that can chemically bind phosphorus and micronutrients, "
+                    f"influencing rhizosphere microbial associations."
+                ),
                 steps=[
-                    f"Rainfall availability (~{rain_val} mm) regulates soil moisture replenishment",
-                    f"Soil organic carbon (~{soc_val}%) governs water retention and biological energy flux",
-                    "Cropping diversity determines habitat heterogeneity for above/below ground organisms",
-                    "Systemic biological resilience is maintained through multi-trophic stability"
+                    f"Alkaline soil pH ({s.ph}) tends to complex phosphorus with calcium in semi-arid soils",
+                    "Can restrict bioavailable micronutrients for crop and beneficial rhizosphere microorganisms",
+                    "Organic matter additions release weak organic acids that can mobilize bound nutrients"
                 ]
             )
             identified_chains.append(chain)
             diagnostic_insights.append(
-                f"Multi-metric analysis connects Soil Carbon ({soc_val}%), Moisture dynamics ({rain_val} mm rainfall), "
-                f"and Cropping structure to diagnose the biological carrying capacity of your land."
+                f"Alkaline soil pH ({s.ph}) is a key biochemical factor that can limit phosphorus and micronutrient availability."
             )
 
-        # Build formatted causal chains representation
+        # Causal Chain 3: Chemical Pressure (ONLY if explicitly indicated)
+        if h.pesticide_pressure in ["high", "intensive"]:
+            chain = EcologicalCausalChain(
+                name="Agricultural Chemical Pressure and Beneficial Invertebrates",
+                variables=["Pesticide Pressure", "Beneficial Insects", "Biological Corridors"],
+                description="Elevated chemical applications can reduce populations of non-target beneficial insects, detritivores, and pollinators.",
+                steps=[
+                    "High synthetic pesticide pressure reported in field management",
+                    "Can adversely affect non-target predatory beetles, parasitoid wasps, and wild pollinators",
+                    "Habitat buffers and integrated pest management can support natural pest control equilibria"
+                ]
+            )
+            identified_chains.append(chain)
+            diagnostic_insights.append(
+                "Reported high pesticide pressure poses a direct stress on non-target beneficial insect populations and soil biological activity."
+            )
+
+        # Fallback chain if no specific trigger, using strictly known current variables
+        if not identified_chains:
+            known_vars = []
+            if s.organic_carbon_percent is not None: known_vars.append(f"SOC {s.organic_carbon_percent}%")
+            if c.annual_rainfall_mm is not None: known_vars.append(f"Rainfall {c.annual_rainfall_mm} mm")
+            if s.ph is not None: known_vars.append(f"pH {s.ph}")
+            if l.crop: known_vars.append(f"Crop {l.crop}")
+            if l.cropping_system: known_vars.append(f"Management {l.cropping_system}")
+            
+            chain = EcologicalCausalChain(
+                name="Agroecosystem Ecological Diagnostic",
+                variables=known_vars if known_vars else ["Environmental Baseline"],
+                description="Evaluation of current site parameters and their ecological interactions.",
+                steps=[
+                    f"Current crop: {crop_display}",
+                    f"Management system: {l.cropping_system or 'unspecified'}",
+                    f"Hydrological and edaphic status based on available inputs ({', '.join(known_vars) if known_vars else 'baseline'})"
+                ]
+            )
+            identified_chains.append(chain)
+            diagnostic_insights.append(
+                f"Multi-metric evaluation based on current inputs for {crop_display}: "
+                f"{', '.join(known_vars) if known_vars else 'baseline metrics'}."
+            )
+
+        # Build formatted causal pathways
         causal_pathways = []
         for ch in identified_chains:
             causal_pathways.append(f"**{ch.name}**:\n" + " → ".join(ch.steps))
 
-        overall_diagnosis = " ".join(diagnostic_insights) if diagnostic_insights else (
-            "Multi-metric ecological analysis indicates that hydrological constraints, soil organic matter deficit, "
-            "and structural habitat simplification are jointly driving biodiversity decline."
-        )
+        overall_diagnosis = " ".join(diagnostic_insights)
 
         return {
             "variables_considered": variables_considered,
