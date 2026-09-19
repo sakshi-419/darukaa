@@ -1,5 +1,5 @@
 import re
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from backend.app.schemas.environmental import (
     EnvironmentalState, SoilProfile, ClimateProfile, LandProfile,
     LocationProfile, HumanImpactProfile, BiodiversityProfile
@@ -85,53 +85,60 @@ class EnvironmentalExtractor:
                 pass
 
         # 6. Crops / Vegetation
-        crop_catalog = [
-            ("chickpea", ["chickpea", "cicer arietinum", "chana", "garbanzo", "gram"]),
-            ("pigeonpea", ["pigeonpea", "cajanus cajan", "arhar", "tur", "red gram"]),
-            ("lentil", ["lentil", "masoor", "lens culinaris"]),
-            ("cowpea", ["cowpea", "lobiya"]),
-            ("pea", ["pea", "peas", "matar"]),
-            ("soybean", ["soybean", "soya"]),
-            ("groundnut", ["groundnut", "peanut"]),
-            ("wheat", ["wheat", "triticum"]),
-            ("rice", ["rice", "paddy", "oryza"]),
-            ("maize", ["maize", "corn", "zea mays"]),
-            ("barley", ["barley"]),
-            ("millet", ["millet", "bajra", "pearl millet", "finger millet", "ragi", "foxtail millet"]),
-            ("sorghum", ["sorghum", "jowar"]),
-            ("cotton", ["cotton", "gossypium"]),
-            ("mustard", ["mustard", "sarson", "rapeseed", "canola", "brassica"]),
-            ("tea", ["tea", "camellia sinensis"]),
-            ("coffee", ["coffee"]),
-            ("sugarcane", ["sugarcane", "cane"]),
-            ("sunflower", ["sunflower"]),
-            ("pulses", ["pulses", "legumes", "legume"])
-        ]
-        
-        detected_crop = None
-        for canonical_name, syns in crop_catalog:
-            for s in syns:
-                if re.search(r'\b' + re.escape(s) + r'\b', text_lower):
-                    detected_crop = canonical_name
+        # Check specific multi-species / agroforestry crop combinations first
+        if re.search(r'\bpearl\s+millet\s*(?:\+|\band\b)?\s*native\s+trees?\b', text_lower):
+            state.land.crop = "Pearl millet + native trees"
+            state.land.cropping_system = "agroforestry"
+            state.land.land_use = "agroforestry"
+        else:
+            crop_catalog = [
+                ("chickpea", ["chickpea", "cicer arietinum", "chana", "garbanzo", "gram"]),
+                ("pigeonpea", ["pigeonpea", "cajanus cajan", "arhar", "tur", "red gram"]),
+                ("lentil", ["lentil", "masoor", "lens culinaris"]),
+                ("cowpea", ["cowpea", "lobiya"]),
+                ("pea", ["pea", "peas", "matar"]),
+                ("soybean", ["soybean", "soya"]),
+                ("groundnut", ["groundnut", "peanut"]),
+                ("wheat", ["wheat", "triticum"]),
+                ("rice", ["rice", "paddy", "oryza"]),
+                ("maize", ["maize", "corn", "zea mays"]),
+                ("barley", ["barley"]),
+                ("pearl millet", ["pearl millet", "bajra"]),
+                ("millet", ["millet", "finger millet", "ragi", "foxtail millet"]),
+                ("sorghum", ["sorghum", "jowar"]),
+                ("cotton", ["cotton", "gossypium"]),
+                ("mustard", ["mustard", "sarson", "rapeseed", "canola", "brassica"]),
+                ("tea", ["tea", "camellia sinensis"]),
+                ("coffee", ["coffee"]),
+                ("sugarcane", ["sugarcane", "cane"]),
+                ("sunflower", ["sunflower"]),
+                ("pulses", ["pulses", "legumes", "legume"])
+            ]
+            
+            detected_crop = None
+            for canonical_name, syns in crop_catalog:
+                for s in syns:
+                    if re.search(r'\b' + re.escape(s) + r'\b', text_lower):
+                        detected_crop = canonical_name
+                        break
+                if detected_crop:
                     break
-            if detected_crop:
-                break
 
-        if detected_crop:
-            state.land.crop = detected_crop
-            if not state.land.land_use:
-                state.land.land_use = "cropland"
+            if detected_crop:
+                state.land.crop = detected_crop
+                if not state.land.land_use:
+                    state.land.land_use = "cropland"
 
         # 7. Cropping System / Management System
-        if re.search(r'\b(?:crop\s+rotation|rotational\s+cropping|crop\s+rotations|crop-rotation|rotation)\b', text_lower):
+        if re.search(r'\b(?:agroforestry|silvopasture|alley\s+cropping|native\s+trees?)\b', text_lower):
+            state.land.cropping_system = "agroforestry"
+            state.land.land_use = "agroforestry"
+        elif re.search(r'\b(?:crop\s+rotation|rotational\s+cropping|crop\s+rotations|crop-rotation|rotation)\b', text_lower):
             state.land.cropping_system = "crop rotation"
         elif re.search(r'\b(?:monoculture|continuous\s+monoculture|single\s+crop|sole\s+cropping)\b', text_lower):
             state.land.cropping_system = "monoculture"
         elif re.search(r'\b(?:intercropping|intercrop|strip-intercropping|strip\s+intercropping|mixed\s+cropping)\b', text_lower):
             state.land.cropping_system = "intercropping"
-        elif re.search(r'\b(?:agroforestry|silvopasture|alley\s+cropping)\b', text_lower):
-            state.land.cropping_system = "agroforestry"
-            state.land.land_use = "agroforestry"
 
         # Land use check
         if re.search(r'\b(?:cropland|farmland|field|farm)\b', text_lower):
@@ -148,16 +155,13 @@ class EnvironmentalExtractor:
             state.climate.seasonality = "semi-arid"
         elif "semi-arid" in text_lower or "semi arid" in text_lower:
             state.location.region = "semi-arid"
-            state.climate.seasonality = "semi-arid"
         elif "arid" in text_lower:
             state.location.region = "arid"
-            state.climate.seasonality = "arid"
         elif "tropical" in text_lower:
             state.location.region = "tropical"
             state.climate.seasonality = "tropical"
         elif "temperate" in text_lower:
             state.location.region = "temperate"
-            state.climate.seasonality = "temperate"
 
         # 9. Human Impact / Pesticide Pressure (only if explicitly stated)
         if re.search(r'\b(?:high\s+pesticide|heavy\s+pesticide|intensive\s+chemical)\b', text_lower):
@@ -182,10 +186,38 @@ class EnvironmentalExtractor:
             signals += 1
         if re.search(r'\b(?:moisture\s*[0-9]|\d+%\s*moisture)\b', text_lower):
             signals += 1
-        if re.search(r'\b(?:chickpea|wheat|rice|cotton|maize|crop\s+rotation|monoculture|intercropping)\b', text_lower):
+        if re.search(r'\b(?:chickpea|wheat|rice|cotton|maize|millet|agroforestry|crop\s+rotation|monoculture|intercropping)\b', text_lower):
             signals += 1
         
         # If user provides >= 2 distinct environmental signals, it's an assessment
         return signals >= 2
+
+    @staticmethod
+    def get_unmeasured_variables(state: EnvironmentalState) -> List[str]:
+        """
+        Identifies variables not explicitly provided by the user that must never be invented.
+        """
+        unmeasured: List[str] = []
+        if state.soil.ph is None:
+            unmeasured.append("Soil pH (Not provided)")
+        if state.soil.moisture_percent is None:
+            unmeasured.append("Soil moisture (Not provided)")
+        if state.soil.organic_carbon_percent is None:
+            unmeasured.append("Soil organic carbon (Not provided)")
+        if state.climate.annual_rainfall_mm is None:
+            unmeasured.append("Annual rainfall (Not provided)")
+        if not state.land.crop:
+            unmeasured.append("Crop / vegetation (Not provided)")
+        if not state.land.cropping_system:
+            unmeasured.append("Management system (Not provided)")
+        
+        # Environmental variables that must never be assumed without direct testing
+        unmeasured.append("Soil texture (Not provided / unmeasured)")
+        unmeasured.append("Nutrient concentrations (P, Zn, N) (Not provided / unmeasured)")
+        unmeasured.append("Microbial biomass & microbial diversity (Not measured)")
+        unmeasured.append("Aggregate stability & erosion rate (Not measured)")
+        unmeasured.append("Groundwater level & salinity (Not provided / unmeasured)")
+        unmeasured.append("Soil temperature & evaporation rate (Not measured)")
+        return unmeasured
 
 extractor = EnvironmentalExtractor()

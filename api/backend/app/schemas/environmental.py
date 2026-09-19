@@ -67,7 +67,7 @@ class EnvironmentAnalyzeRequest(BaseModel):
 
 class ImpactedMetric(BaseModel):
     metric: str
-    direction: str = "increase"  # increase (↑) or decrease (↓)
+    direction: str = "Potential improvement, depending on site conditions"  # Calibrated trajectory, not guaranteed
     expected_time: str = "medium_term"  # short_term, medium_term, long_term
     scientific_basis: Optional[str] = None
 
@@ -91,6 +91,7 @@ class BiodiversityRecommendation(BaseModel):
     evidence: List[ScientificEvidence]
     confidence: str = "medium"  # low, medium, high
     confidence_rationale: Optional[str] = None
+    evidence_strength: str = "Moderate evidence"  # Strong evidence, Moderate evidence, Limited/indirect evidence
     connected_variables: List[str] = Field(default_factory=list)
 
 class CausalRelationship(BaseModel):

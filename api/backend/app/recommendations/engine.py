@@ -91,71 +91,104 @@ class RecommendationEngine:
             return matched[:2]
 
         crop_name = l.crop if l.crop else "field crop"
-        is_legume = crop_name.lower() in ["chickpea", "pigeonpea", "lentil", "cowpea", "pea", "pulses", "legumes", "soybean", "groundnut"]
-        is_rotation = l.cropping_system in ["crop rotation", "rotation", "rotational"]
-        is_monoculture = (l.cropping_system == "monoculture")
+        crop_lower = crop_name.lower()
+        system_lower = (l.cropping_system or "").lower()
+        land_use_lower = (l.land_use or "").lower()
+
+        is_agroforestry = system_lower == "agroforestry" or land_use_lower == "agroforestry" or "native trees" in crop_lower or "trees" in crop_lower
+        is_legume = any(leg in crop_lower for leg in ["chickpea", "pigeonpea", "lentil", "cowpea", "pea", "pulses", "legumes", "soybean", "groundnut"])
+        is_rotation = system_lower in ["crop rotation", "rotation", "rotational"]
+        is_monoculture = system_lower == "monoculture"
 
         # -------------------------------------------------------------
-        # 1. Cropping System & Soil Organic Carbon Recommendation
+        # 1. Cropping System & Agroecosystem Recommendation
         # -------------------------------------------------------------
-        if is_rotation:
-            # User is ALREADY practicing crop rotation: Optimize it!
-            legume_docs = find_evidence_for_topic(["rotation", "cover crop", "residue", "organic", "fao"])
+        if is_agroforestry:
+            # User ALREADY has agroforestry established: Optimize it! Do NOT recommend converting to agroforestry.
+            agro_docs = find_evidence_for_topic(["agroforestry", "tree", "shade", "biodiversity", "fao", "ipbes"])
+            rec1 = BiodiversityRecommendation(
+                id="rec_optimize_agroforestry",
+                title=f"Optimize Established Agroforestry System with Canopy Pruning and Mulch Cycling",
+                action=(
+                    f"Manage the existing tree-crop canopy architecture through periodic selective pruning to balance solar radiation "
+                    f"for understory {crop_name} while cycling pruned woody and leafy biomass onto the soil surface as protective organic mulch."
+                ),
+                why_it_works=(
+                    "Because agroforestry is already established, active canopy and root management balances light competition with "
+                    "tree-mediated microclimate cooling and deep-rooted organic matter turnover, supporting soil resilience under restricted rainfall."
+                ),
+                impacted_metrics=[
+                    ImpactedMetric(metric="microclimate_buffering", direction="Potential improvement, depending on canopy density and species", expected_time="short_term", scientific_basis="Tree canopy moderates solar radiation and buffers topsoil temperature extremes."),
+                    ImpactedMetric(metric="soil_organic_carbon", direction="Potential increase, depending on pruned biomass return", expected_time="medium_term", scientific_basis="Leaf litter and root exudates provide diverse carbon inputs to the soil profile.")
+                ],
+                time_horizon={
+                    "short_term": "1-3 months: Optimized sunlight transmission to understory crops following pruning.",
+                    "medium_term": "1-2 years: Gradual build-up of surface organic mulch layer.",
+                    "long_term": "3+ years: Deep root channel formation and sustained microclimate buffering."
+                },
+                evidence=agro_docs,
+                evidence_strength="Strong evidence",
+                connected_variables=["Agroforestry", "Canopy Management", "Soil Moisture"]
+            )
+            recommendations.append(rec1)
+
+        elif is_rotation:
+            # User is ALREADY practicing crop rotation: Optimize it! Do NOT recommend converting to rotation.
+            rotation_docs = find_evidence_for_topic(["rotation", "cover crop", "residue", "organic", "fao"])
             rec1 = BiodiversityRecommendation(
                 id="rec_optimize_rotation_residue",
                 title=f"Optimize Existing {crop_name.title()} Rotation with Organic Residue Retention",
                 action=(
-                    f"Optimize the established {crop_name} crop rotation by retaining post-harvest crop residues on the soil surface, "
-                    f"incorporating site-adapted cover crops or green manures during fallow periods, "
-                    f"and minimizing inversion tillage to protect fungal hyphal networks."
+                    f"Consider retaining post-harvest crop residues on the soil surface where appropriate, "
+                    f"with cover crops or green manures evaluated based on seasonal moisture availability and local extension recommendations."
                 ),
                 why_it_works=(
                     "Because crop rotation is already practiced, maintaining surface residue cover and diversifying rotational windows "
-                    "can support soil organic carbon accumulation, moderate topsoil temperature extremes, and enhance beneficial rhizosphere "
-                    "microbial functional diversity without disrupting current rotational schedules."
+                    "can support soil organic carbon accumulation and moisture retention without disrupting current rotational schedules."
                 ),
                 impacted_metrics=[
-                    ImpactedMetric(metric="soil_organic_carbon", direction="increase", expected_time="medium_term", scientific_basis="Surface biomass decomposition and root turnover contribute to humic organic reserves."),
-                    ImpactedMetric(metric="soil_moisture_retention", direction="increase", expected_time="medium_term", scientific_basis="Preserved soil pore architecture and surface shading reduce evaporative loss."),
-                    ImpactedMetric(metric="rhizosphere_microbial_diversity", direction="increase", expected_time="short_term", scientific_basis="Continuous organic inputs nourish diverse heterotrophic bacterial and fungal guilds.")
+                    ImpactedMetric(metric="soil_organic_carbon", direction="Potential increase, depending on biomass inputs and tillage", expected_time="medium_term", scientific_basis="Surface biomass decomposition and root turnover contribute to humic organic reserves."),
+                    ImpactedMetric(metric="soil_moisture_retention", direction="Potential improvement, depending on residue cover and soil texture", expected_time="medium_term", scientific_basis="Preserved soil pore architecture and surface shading reduce evaporative loss.")
                 ],
                 time_horizon={
-                    "short_term": "Weeks to months: Reduced surface crusting and enhanced earthworm/microarthropod activity beneath residue mulch.",
-                    "medium_term": "1-2 years: Measurable stabilization of soil organic carbon and improved soil moisture dynamics.",
+                    "short_term": "Weeks to months: Reduced surface crusting and shaded topsoil beneath residue mulch.",
+                    "medium_term": "1-2 years: Stabilization of soil organic carbon and improved moisture buffering.",
                     "long_term": "3+ years: Self-buffering soil structural resilience and enhanced rainfall-use efficiency."
                 },
-                evidence=legume_docs,
+                evidence=rotation_docs,
+                evidence_strength="Strong evidence",
                 connected_variables=["Crop Rotation", "Soil Organic Carbon", "Residue Retention"]
             )
             recommendations.append(rec1)
 
         elif is_monoculture:
-            # User is in continuous monoculture: Recommend diversification
-            legume_docs = find_evidence_for_topic(["intercropping", "legume", "monoculture", "diversification", "fao"])
+            # User is in continuous monoculture: Recommend evaluating diversification
+            monoculture_docs = find_evidence_for_topic(["intercropping", "legume", "monoculture", "diversification", "fao"])
             alt_legumes = "legumes (such as chickpea, pigeonpea, or cowpea)" if not is_legume else "cereal and oilseed break crops"
             rec1 = BiodiversityRecommendation(
                 id="rec_diversify_monoculture",
-                title=f"Diversify Continuous {crop_name.title()} Monoculture with Rotational Sequences",
+                title=f"Evaluate Diversification Options for Continuous {crop_name.title()} Monoculture",
                 action=(
-                    f"Transition continuous {crop_name} monoculture to a diversified rotation or strip-intercropping sequence "
-                    f"incorporating drought-adapted {alt_legumes} with post-harvest residue retention."
+                    f"Consider introducing rotational sequences or strip-intercropping with site-adapted break crops "
+                    f"such as drought-adapted {alt_legumes}, with specific crop selection guided by local market and agroclimatic conditions."
                 ),
                 why_it_works=(
-                    f"Continuous single-crop cultivation of {crop_name} depletes specific soil nutrient zones and limits biological diversity. "
+                    f"Continuous single-crop cultivation of {crop_name} can restrict root-zone biological diversity. "
                     f"Introducing structured crop rotations disrupts host-specific pest cycles and introduces diverse root exudates "
                     f"that can stimulate beneficial bacterial and mycorrhizal communities."
                 ),
                 impacted_metrics=[
-                    ImpactedMetric(metric="soil_organic_carbon", direction="increase", expected_time="medium_term", scientific_basis="Multi-species root systems provide diverse organic substrates for carbon stabilization."),
-                    ImpactedMetric(metric="natural_pest_predation", direction="increase", expected_time="medium_term", scientific_basis="Breaks soil-borne monoculture pest and pathogen reservoirs."),
-                    ImpactedMetric(metric="soil_moisture_retention", direction="increase", expected_time="medium_term", scientific_basis="Improved soil pore geometry and structural aggregate stability retard moisture evaporation.")
+                    ImpactedMetric(metric="soil_organic_carbon", direction="Potential increase, depending on crop species and residue return", expected_time="medium_term", scientific_basis="Multi-species root systems provide diverse organic substrates for carbon stabilization."),
+                    ImpactedMetric(metric="natural_pest_predation", direction="Potential improvement, depending on crop sequence", expected_time="medium_term", scientific_basis="Breaks soil-borne monoculture pest and pathogen reservoirs."),
+                    ImpactedMetric(metric="soil_moisture_retention", direction="Potential improvement, depending on soil structure", expected_time="medium_term", scientific_basis="Diverse root architectures may enhance infiltration and aggregate stability.")
                 ],
                 time_horizon={
-                    "short_term": "1 season: Interrupted pest cycles and emergence of beneficial rhizosphere interactions.",
+                    "short_term": "1 season: Interrupted pest cycles and emergence of diverse root exudates.",
                     "medium_term": "1-2 years: Progressive enhancement of active carbon fractions and moisture buffering.",
-                    "long_term": "3+ years: Multi-trophic agroecosystem equilibrium and sustained soil carrying capacity."
+                    "long_term": "3+ years: Agroecosystem diversification and sustained soil carrying capacity."
                 },
-                evidence=legume_docs,
+                evidence=monoculture_docs,
+                evidence_strength="Strong evidence",
                 connected_variables=["Monoculture Cropping", "Crop Diversification", "Soil Organic Carbon"]
             )
             recommendations.append(rec1)
@@ -175,8 +208,8 @@ class RecommendationEngine:
                     "which helps stabilize soil aggregates, supports beneficial decomposers, and improves moisture holding capacity."
                 ),
                 impacted_metrics=[
-                    ImpactedMetric(metric="soil_organic_carbon", direction="increase", expected_time="medium_term", scientific_basis="Biomass retention contributes to active and humified organic fractions."),
-                    ImpactedMetric(metric="soil_moisture_retention", direction="increase", expected_time="medium_term", scientific_basis="Enhanced aggregate stability and surface mulch buffer moisture loss.")
+                    ImpactedMetric(metric="soil_organic_carbon", direction="Potential increase, depending on organic input volume", expected_time="medium_term", scientific_basis="Biomass retention contributes to active and humified organic fractions."),
+                    ImpactedMetric(metric="soil_moisture_retention", direction="Potential improvement, depending on mulch cover", expected_time="medium_term", scientific_basis="Enhanced aggregate stability and surface mulch buffer moisture loss.")
                 ],
                 time_horizon={
                     "short_term": "1-3 months: Shaded topsoil microclimate and reduced moisture evaporation.",
@@ -184,31 +217,30 @@ class RecommendationEngine:
                     "long_term": "3+ years: Enhanced ecological drought buffering."
                 },
                 evidence=general_docs,
+                evidence_strength="Moderate evidence",
                 connected_variables=["Soil Organic Carbon", "Residue Management"]
             )
             recommendations.append(rec1)
 
         # -------------------------------------------------------------
-        # 2. Alkaline Soil & Nutrient Management
+        # 2. Soil pH & Nutrient Management (Alkaline vs Acidic)
         # -------------------------------------------------------------
         if s.ph is not None and s.ph >= 7.5:
             alkaline_docs = find_evidence_for_topic(["nutrient", "organic amendment", "biofertilizer", "soil"])
             rec2 = BiodiversityRecommendation(
                 id="rec_alkaline_nutrient_management",
-                title="Apply Soil-Test-Based Nutrient Management and Organic Amendments for Alkaline Soils",
+                title="Soil-Test-Guided Nutrient Management and Organic Amendments for Alkaline Soils",
                 action=(
-                    "Apply targeted organic amendments (such as well-cured compost or farmyard manure) combined with "
-                    "beneficial bio-inoculants (such as phosphorus-solubilizing bacteria) to buffer alkaline soil pH "
-                    "and optimize nutrient bioavailability based on periodic soil testing."
+                    "Consider organic amendments (such as well-cured compost or farmyard manure) where appropriate, "
+                    "with application rates guided by periodic soil testing to improve nutrient bioavailability in alkaline conditions."
                 ),
                 why_it_works=(
-                    f"At soil pH {s.ph}, chemical fixation of phosphorus and zinc can restrict plant uptake. "
-                    "Composted organic amendments release weak organic acids that can mobilize bound mineral nutrients "
-                    "in the root zone while fostering beneficial rhizosphere microbial communities without increasing soil salinity."
+                    f"At soil pH {s.ph}, chemical availability of phosphorus and zinc can be constrained. "
+                    "Composted organic amendments release weak organic acids that may assist in mobilizing bound mineral nutrients, "
+                    "though targeted soil testing should verify whether specific nutrient supplementation is needed."
                 ),
                 impacted_metrics=[
-                    ImpactedMetric(metric="nutrient_bioavailability", direction="increase", expected_time="short_term", scientific_basis="Microbial organic acids mobilize chemically fixed phosphorus and micronutrients."),
-                    ImpactedMetric(metric="rhizosphere_microbial_activity", direction="increase", expected_time="short_term", scientific_basis="Compost amendments introduce diverse decomposer inocula and metabolic substrates.")
+                    ImpactedMetric(metric="nutrient_bioavailability", direction="Potential improvement, depending on soil buffering and testing", expected_time="short_term", scientific_basis="Microbial organic acids mobilize chemically bound phosphorus and micronutrients.")
                 ],
                 time_horizon={
                     "short_term": "1-2 months: Improved root-zone nutrient solubility and early plant vigor.",
@@ -216,30 +248,63 @@ class RecommendationEngine:
                     "long_term": "3+ years: Stabilized rhizosphere pH buffering capacity."
                 },
                 evidence=alkaline_docs,
+                evidence_strength="Moderate evidence",
                 connected_variables=["Soil pH", "Nutrient Bioavailability", "Organic Amendments"]
             )
             recommendations.append(rec2)
 
+        elif s.ph is not None and s.ph < 6.0:
+            acidic_docs = find_evidence_for_topic(["lime", "acidic", "soil health", "ph", "fao"])
+            rec2 = BiodiversityRecommendation(
+                id="rec_acidic_nutrient_management",
+                title="Soil-Test-Guided Nutrient Management and Liming Evaluation for Acidic Soils",
+                action=(
+                    "Conduct laboratory soil testing to determine exchangeable acidity and base saturation. "
+                    "Where indicated by local extension guidelines, evaluate agricultural lime or organic amendments to moderate acidity and improve nutrient availability."
+                ),
+                why_it_works=(
+                    f"In acidic soils (pH {s.ph}), phosphorus availability can be restricted by aluminum or iron binding. "
+                    "Soil-test-guided amendments help ensure applications match site-specific buffering capacity."
+                ),
+                impacted_metrics=[
+                    ImpactedMetric(metric="nutrient_bioavailability", direction="Potential improvement, depending on lime requirement testing", expected_time="short_term", scientific_basis="Moderating soil acidity reduces aluminum fixation of phosphorus.")
+                ],
+                time_horizon={
+                    "short_term": "1-2 months: Neutralization of free hydrogen/aluminum ions in the topsoil.",
+                    "medium_term": "1 season: Improved phosphorus uptake and root elongation.",
+                    "long_term": "2-3 years: Normalized cation exchange capacity."
+                },
+                evidence=acidic_docs,
+                evidence_strength="Moderate evidence",
+                connected_variables=["Soil pH", "Acidic Soil Management", "Nutrient Bioavailability"]
+            )
+            recommendations.append(rec2)
+
         # -------------------------------------------------------------
-        # 3. Moisture Conservation & In-situ Catchments
+        # 3. Moisture Conservation & In-situ Catchments (Only in dryland/semi-arid conditions)
         # -------------------------------------------------------------
-        if (c.annual_rainfall_mm is not None and c.annual_rainfall_mm <= 650) or (s.moisture_percent is not None and s.moisture_percent <= 20) or (state.location.region and "arid" in state.location.region.lower()):
+        is_dryland = ((c.annual_rainfall_mm is not None and c.annual_rainfall_mm <= 650) or
+                      (s.moisture_percent is not None and s.moisture_percent <= 20) or
+                      (state.location.region and "arid" in state.location.region.lower()))
+        is_high_rainfall = c.annual_rainfall_mm is not None and c.annual_rainfall_mm >= 800
+
+        if is_dryland and not is_high_rainfall:
             moisture_docs = find_evidence_for_topic(["water harvesting", "moisture", "mulch", "drought", "ipcc"])
             rec3 = BiodiversityRecommendation(
                 id="rec_in_situ_moisture_conservation",
-                title="Implement In-Situ Soil Moisture Conservation and Surface Mulching",
+                title="Evaluate In-Situ Soil Moisture Conservation and Surface Mulching",
                 action=(
-                    "Maintain continuous protective soil residue cover (straw or stubble mulching) post-harvest, and construct "
-                    "subtle contour furrows or micro-catchment ridges along natural slope contours to guide and retain seasonal rainfall."
+                    "Contour-based moisture conservation measures (such as micro-catchment ridges or furrows) may be considered "
+                    "where field slope, soil texture, and rainfall intensity make them appropriate, alongside protective crop residue retention."
                 ),
                 why_it_works=(
                     "In semi-arid agroecosystems, high surface temperatures drive substantial evaporation from bare soil. "
-                    "Organic surface mulch shades the topsoil, which can moderate extreme root-zone temperatures, while contour furrows "
-                    "slow overland sheet flow, allowing rainfall to infiltrate into the active root zone."
+                    "Organic surface mulch shades the topsoil, which can moderate extreme root-zone temperatures, while contour measures "
+                    "slow overland sheet flow, facilitating rainfall infiltration into the active root zone."
                 ),
                 impacted_metrics=[
-                    ImpactedMetric(metric="soil_moisture_retention", direction="increase", expected_time="short_term", scientific_basis="Surface mulch retards direct solar evaporation and buffers root-zone temperatures."),
-                    ImpactedMetric(metric="rainfall_use_efficiency", direction="increase", expected_time="short_term", scientific_basis="Contour furrows capture runoff and facilitate localized moisture infiltration.")
+                    ImpactedMetric(metric="soil_moisture_retention", direction="Potential improvement, depending on mulch thickness and soil texture", expected_time="short_term", scientific_basis="Surface mulch retards direct solar evaporation and buffers root-zone temperatures."),
+                    ImpactedMetric(metric="rainfall_use_efficiency", direction="Potential improvement, depending on slope and furrow design", expected_time="short_term", scientific_basis="Contour furrows capture runoff and facilitate localized moisture infiltration.")
                 ],
                 time_horizon={
                     "short_term": "Immediate: Shading reduces topsoil thermal baking and slows evaporation.",
@@ -247,6 +312,7 @@ class RecommendationEngine:
                     "long_term": "2-3 years: Sustained biological drought resilience across the field."
                 },
                 evidence=moisture_docs,
+                evidence_strength="Moderate evidence",
                 connected_variables=["Annual Rainfall", "Soil Moisture", "Surface Temperature"]
             )
             recommendations.append(rec3)
@@ -258,26 +324,26 @@ class RecommendationEngine:
             buffer_docs = find_evidence_for_topic(["buffer", "pollinator", "ipbes", "habitat", "connectivity"])
             rec4 = BiodiversityRecommendation(
                 id="rec_native_vegetative_buffers",
-                title="Establish Native Flowering Vegetative Buffer Strips Along Field Perimeters",
+                title="Consider Native Flowering Vegetative Buffer Strips Along Field Perimeters",
                 action=(
-                    "Establish 3 to 5 meter non-crop vegetative buffer zones along field perimeters using locally adapted "
-                    "flowering shrubs, perennial bunchgrasses, and pollinator-friendly wildflowers, minimizing pesticide drift into margins."
+                    "Establishing native perennial vegetative buffer strips along field boundaries may be evaluated where field layout and property "
+                    "boundaries permit, selecting locally adapted flowering shrubs and bunchgrasses to support beneficial insects."
                 ),
                 why_it_works=(
-                    "Field boundary vegetation provides supplementary floral nectar and pollen for solitary bees, parasitoids, "
-                    "and predatory ground beetles during crop fallow phases, supporting natural biological pest regulation "
-                    "while helping filter wind-borne dust and surface runoff."
+                    "Field boundary vegetation provides supplementary floral nectar and pollen for wild pollinators and predatory insects "
+                    "during crop fallow phases, supporting natural biological pest regulation while helping filter wind-borne dust."
                 ),
                 impacted_metrics=[
-                    ImpactedMetric(metric="beneficial_insect_abundance", direction="increase", expected_time="short_term", scientific_basis="Provides season-long floral and nesting resources for wild pollinators and predators."),
-                    ImpactedMetric(metric="landscape_habitat_diversity", direction="increase", expected_time="medium_term", scientific_basis="Establishes stable linear corridors connecting isolated agricultural patches.")
+                    ImpactedMetric(metric="beneficial_insect_abundance", direction="Potential improvement, depending on plant species selection", expected_time="short_term", scientific_basis="Provides season-long floral and nesting resources for wild pollinators and predators."),
+                    ImpactedMetric(metric="landscape_habitat_diversity", direction="Potential improvement, depending on boundary connectivity", expected_time="medium_term", scientific_basis="Establishes linear semi-natural corridors connecting agricultural patches.")
                 ],
                 time_horizon={
-                    "short_term": "1-3 months: Rapid colonization by foraging native pollinators and predatory insects.",
-                    "medium_term": "1-2 years: Established perennial nesting sites and enhanced biological pest regulation.",
-                    "long_term": "3+ years: Resilient semi-natural habitat network supporting field microclimates."
+                    "short_term": "1-3 months: Early colonization by foraging native pollinators and predatory insects.",
+                    "medium_term": "1-2 years: Established perennial nesting sites and biological pest regulation.",
+                    "long_term": "3+ years: Semi-natural habitat network supporting field microclimates."
                 },
                 evidence=buffer_docs,
+                evidence_strength="Moderate evidence",
                 connected_variables=["Habitat Diversity", "Field Boundaries", "Beneficial Insects"]
             )
             recommendations.append(rec4)
