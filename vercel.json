@@ -17,11 +17,7 @@
       "use": "@vercel/next"
     }
   ],
-  "functions": {
-    "api/**/*.py": {
-      "includeFiles": "{backend/**,knowledge_base/**,scripts/**}"
-    }
-  },
+
   "routes": [
     {
       "src": "/api/(.*)",
